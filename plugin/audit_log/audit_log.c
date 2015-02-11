@@ -31,7 +31,7 @@
 #include "buffer.h"
 #include "audit_handler.h"
 
-#define PLUGIN_VERSION 0x0002
+#define PLUGIN_VERSION 0x0003
 
 
 enum audit_log_policy_t { ALL, NONE, LOGINS, QUERIES };
@@ -39,6 +39,92 @@ enum audit_log_strategy_t
   { ASYNCHRONOUS, PERFORMANCE, SEMISYNCHRONOUS, SYNCHRONOUS };
 enum audit_log_format_t { OLD, NEW, JSON, CSV };
 enum audit_log_handler_t { HANDLER_FILE, HANDLER_SYSLOG };
+
+enum enum_sql_command {
+  SQLCOM_SELECT, SQLCOM_CREATE_TABLE, SQLCOM_CREATE_INDEX, SQLCOM_ALTER_TABLE,
+  SQLCOM_UPDATE, SQLCOM_INSERT, SQLCOM_INSERT_SELECT,
+  SQLCOM_DELETE, SQLCOM_TRUNCATE, SQLCOM_DROP_TABLE, SQLCOM_DROP_INDEX,
+
+  SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
+  SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_STATUS,
+  SQLCOM_SHOW_ENGINE_LOGS, SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_MUTEX,
+  SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
+  SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
+  SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB, SQLCOM_SHOW_TABLE_STATUS,
+  SQLCOM_SHOW_TRIGGERS,
+
+  SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
+  SQLCOM_GRANT,
+  SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
+  SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
+  SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
+  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
+  SQLCOM_ASSIGN_TO_KEYCACHE, SQLCOM_PRELOAD_KEYS,
+  SQLCOM_FLUSH, SQLCOM_KILL, SQLCOM_ANALYZE,
+  SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
+  SQLCOM_COMMIT, SQLCOM_SAVEPOINT, SQLCOM_RELEASE_SAVEPOINT,
+  SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
+  SQLCOM_BEGIN, SQLCOM_CHANGE_MASTER,
+  SQLCOM_RENAME_TABLE,
+  SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,
+  SQLCOM_SHOW_OPEN_TABLES,
+  SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
+  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
+  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_DO,
+  SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
+  SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
+  SQLCOM_HELP, SQLCOM_CREATE_USER, SQLCOM_DROP_USER, SQLCOM_RENAME_USER,
+  SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
+  SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
+  SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
+  SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
+  SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
+  SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
+  SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
+  SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
+  SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
+  SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
+  SQLCOM_SHOW_PROC_CODE, SQLCOM_SHOW_FUNC_CODE,
+  SQLCOM_ALTER_TABLESPACE,
+  SQLCOM_INSTALL_PLUGIN, SQLCOM_UNINSTALL_PLUGIN,
+  SQLCOM_SHOW_AUTHORS, SQLCOM_BINLOG_BASE64_EVENT,
+  SQLCOM_SHOW_PLUGINS,
+  SQLCOM_SHOW_CONTRIBUTORS,
+  SQLCOM_CREATE_SERVER, SQLCOM_DROP_SERVER, SQLCOM_ALTER_SERVER,
+  SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
+  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
+  SQLCOM_SHOW_CREATE_TRIGGER,
+  SQLCOM_ALTER_DB_UPGRADE,
+  SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
+  SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
+  SQLCOM_SHOW_RELAYLOG_EVENTS, 
+  /*
+    When a command is added here, be sure it's also added in mysqld.cc
+    in "struct show_var_st status_vars[]= {" ...
+  */
+  /* This should be the last !!! */
+  SQLCOM_END
+};
+
+struct st_mysql_const_lex_string
+{
+  const char *str;
+  enum enum_sql_command sql_command;
+};
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
+LEX_CSTRING mysql_statement_names[] = {
+  {"set_option", SQLCOM_SET_OPTION},
+  {"grant", SQLCOM_GRANT},
+  {"revoke", SQLCOM_REVOKE},
+  {"revoke_all", SQLCOM_REVOKE_ALL},
+  {"create_table", SQLCOM_CREATE_TABLE},
+  {"alter_table", SQLCOM_ALTER_TABLE},
+  {"drop_table", SQLCOM_DROP_TABLE},
+  {"truncate", SQLCOM_TRUNCATE},
+  {"create_index", SQLCOM_CREATE_INDEX},
+  {"drop_index", SQLCOM_DROP_INDEX},
+};
 
 typedef void (*escape_buf_func_t)(const char *, size_t *, char *, size_t *);
 
@@ -667,7 +753,6 @@ int audit_log_plugin_deinit(void *arg __attribute__((unused)))
   return(0);
 }
 
-
 static
 int is_event_class_allowed_by_policy(unsigned int class,
                                      enum audit_log_policy_t policy)
@@ -683,6 +768,40 @@ int is_event_class_allowed_by_policy(unsigned int class,
   return (class_mask[policy] & (1 << class)) != 0;
 }
 
+enum enum_sql_command get_sql_command(const char* sql)
+{
+  int i= 0;
+  int size= sizeof(mysql_statement_names)/sizeof(LEX_CSTRING);
+  for (; i < size; i++) {
+    if (strcmp(sql, mysql_statement_names[i].str) == 0) {
+      return mysql_statement_names[i].sql_command;
+    }
+  }
+
+  return SQLCOM_END;
+}
+
+static
+int is_query_allowed_by_filter(const struct mysql_event_general* event)
+{
+  enum enum_sql_command sql_command= get_sql_command(event->general_sql_command.str);
+
+  switch (sql_command) {
+  case SQLCOM_SET_OPTION:
+  case SQLCOM_CREATE_TABLE:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_DROP_TABLE:
+  case SQLCOM_CREATE_INDEX:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_GRANT:
+  case SQLCOM_REVOKE:
+  case SQLCOM_REVOKE_ALL:
+  case SQLCOM_TRUNCATE:
+    return 1;
+  default:
+    return 0;
+  }
+}
 
 static
 void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
@@ -699,6 +818,10 @@ void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
   {
     const struct mysql_event_general *event_general=
       (const struct mysql_event_general *) event;
+
+    if (!is_query_allowed_by_filter(event_general))
+      return;
+
     switch (event_general->event_subclass)
     {
     case MYSQL_AUDIT_GENERAL_STATUS:
