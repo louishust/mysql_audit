@@ -139,6 +139,7 @@ ulonglong audit_log_buffer_size= 1048576;
 ulonglong audit_log_rotate_on_size= 0;
 ulonglong audit_log_rotations= 0;
 char audit_log_flush= FALSE;
+char audit_log_filter_query= TRUE;
 ulong audit_log_format= OLD;
 ulong audit_log_handler= HANDLER_FILE;
 char *audit_log_syslog_ident;
@@ -819,7 +820,7 @@ void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
     const struct mysql_event_general *event_general=
       (const struct mysql_event_general *) event;
 
-    if (!is_query_allowed_by_filter(event_general))
+    if (audit_log_filter_query && !is_query_allowed_by_filter(event_general))
       return;
 
     switch (event_general->event_subclass)
@@ -991,9 +992,28 @@ void audit_log_flush_update(
   }
 }
 
+static
+void audit_log_filter_query_update(
+          MYSQL_THD thd __attribute__((unused)),
+          struct st_mysql_sys_var *var __attribute__((unused)),
+          void *var_ptr __attribute__((unused)),
+          const void *save)
+{
+  char new_val= *(const char *)(save);
+
+  if (new_val != audit_log_filter_query)
+  {
+    audit_log_filter_query= new_val;
+  }
+}
+
 static MYSQL_SYSVAR_BOOL(flush, audit_log_flush,
        PLUGIN_VAR_OPCMDARG, "Flush the log file.", NULL,
        audit_log_flush_update, 0);
+
+static MYSQL_SYSVAR_BOOL(filter_query, audit_log_filter_query,
+       PLUGIN_VAR_OPCMDARG, "Filter queris instead of all queries.", NULL,
+       audit_log_filter_query_update, 0);
 
 static MYSQL_SYSVAR_STR(syslog_ident, audit_log_syslog_ident,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -1038,6 +1058,7 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(rotate_on_size),
   MYSQL_SYSVAR(rotations),
   MYSQL_SYSVAR(flush),
+  MYSQL_SYSVAR(filter_query),
   MYSQL_SYSVAR(handler),
   MYSQL_SYSVAR(syslog_ident),
   MYSQL_SYSVAR(syslog_priority),
