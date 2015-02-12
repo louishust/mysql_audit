@@ -783,12 +783,31 @@ enum enum_sql_command get_sql_command(const char* sql)
 }
 
 static
+int is_set_global(const struct mysql_event_general* event)
+{
+  const char *p= event->general_query;
+  unsigned int i=0;
+  for (i=0; i< event->general_query_length - 6; p++, i++) {
+    if ((*p == 'g' || *p == 'G') &&
+        (*(p+1) == 'l' || *(p+1) == 'L') &&
+        (*(p+2) == 'o' || *(p+2) == 'O') &&
+        (*(p+3) == 'b' || *(p+3) == 'B') &&
+        (*(p+4) == 'a' || *(p+4) == 'A') &&
+        (*(p+5) == 'l' || *(p+5) == 'L')) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static
 int is_query_allowed_by_filter(const struct mysql_event_general* event)
 {
   enum enum_sql_command sql_command= get_sql_command(event->general_sql_command.str);
 
   switch (sql_command) {
   case SQLCOM_SET_OPTION:
+    return is_set_global(event);
   case SQLCOM_CREATE_TABLE:
   case SQLCOM_ALTER_TABLE:
   case SQLCOM_DROP_TABLE:
